@@ -17,6 +17,7 @@ const projectTypes = [
   "Other",
 ];
 
+// Netlify API
 const API_URL = "https://codedriptech.netlify.app";
 
 export default function ContactModal({
@@ -379,7 +380,7 @@ export default function ContactModal({
                       value={formData.projectType}
                       onChange={handleChange}
                       required
-                      className="w-full rounded-[13px] border border-white/[0.09] bg-slate-900 px-4 py-3.5 text-[15px] text-white outline-none transition focus:border-blue-400/50"
+                      className="w-full rounded-[13px] border border-white/[0.09] bg-slate-900 px-4 py-3.5 text-[15px] text-white outline-none transition focus:border-blue-400/50 focus:bg-white/[0.06]"
                     >
                       <option value="" disabled>
                         Select a project type
