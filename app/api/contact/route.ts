@@ -5,6 +5,26 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const RECEIVER_EMAIL = "utsavkarki0215@gmail.com";
 
+const ALLOWED_ORIGINS = [
+  "https://codedriptech.com",
+  "https://www.codedriptech.com",
+  "https://codedriptech.netlify.app",
+];
+
+function getCorsHeaders(origin: string | null) {
+  const allowedOrigin =
+    origin && ALLOWED_ORIGINS.includes(origin)
+      ? origin
+      : "https://codedriptech.com";
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    Vary: "Origin",
+  };
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -14,7 +34,20 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#039;");
 }
 
+// Handle browser CORS preflight request
+export async function OPTIONS(request: Request) {
+  const origin = request.headers.get("origin");
+
+  return new NextResponse(null, {
+    status: 204,
+    headers: getCorsHeaders(origin),
+  });
+}
+
 export async function POST(request: Request) {
+  const origin = request.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   try {
     const body = await request.json();
 
@@ -29,14 +62,20 @@ export async function POST(request: Request) {
 
     // Honeypot — catches simple bots
     if (website) {
-      return NextResponse.json({ success: true });
+      return NextResponse.json(
+        { success: true },
+        { headers: corsHeaders }
+      );
     }
 
     // Basic validation
     if (!name || !email || !projectType || !message) {
       return NextResponse.json(
         { error: "Please fill in all required fields." },
-        { status: 400 }
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
       );
     }
 
@@ -49,7 +88,10 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         { error: "Invalid form data." },
-        { status: 400 }
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
       );
     }
 
@@ -57,7 +99,10 @@ export async function POST(request: Request) {
     if (phone !== undefined && typeof phone !== "string") {
       return NextResponse.json(
         { error: "Invalid phone number." },
-        { status: 400 }
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
       );
     }
 
@@ -65,28 +110,40 @@ export async function POST(request: Request) {
     if (name.length > 100) {
       return NextResponse.json(
         { error: "Name is too long." },
-        { status: 400 }
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
       );
     }
 
     if (email.length > 200) {
       return NextResponse.json(
         { error: "Email is too long." },
-        { status: 400 }
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
       );
     }
 
     if (phone && phone.length > 20) {
       return NextResponse.json(
         { error: "Phone number is too long." },
-        { status: 400 }
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
       );
     }
 
     if (message.length > 5000) {
       return NextResponse.json(
         { error: "Message is too long." },
-        { status: 400 }
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
       );
     }
 
@@ -96,7 +153,10 @@ export async function POST(request: Request) {
     if (!emailRegex.test(email.trim())) {
       return NextResponse.json(
         { error: "Please enter a valid email address." },
-        { status: 400 }
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
       );
     }
 
@@ -172,21 +232,32 @@ export async function POST(request: Request) {
 
       return NextResponse.json(
         { error: "Failed to send message. Please try again." },
-        { status: 500 }
+        {
+          status: 500,
+          headers: corsHeaders,
+        }
       );
     }
 
     // Success
-    return NextResponse.json({
-      success: true,
-      message: "Message sent successfully!",
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Message sent successfully!",
+      },
+      {
+        headers: corsHeaders,
+      }
+    );
   } catch (error) {
     console.error("Contact API error:", error);
 
     return NextResponse.json(
       { error: "Something went wrong. Please try again." },
-      { status: 500 }
+      {
+        status: 500,
+        headers: corsHeaders,
+      }
     );
   }
 }
