@@ -17,6 +17,8 @@ const projectTypes = [
   "Other",
 ];
 
+const API_URL = "https://codedriptech.netlify.app";
+
 export default function ContactModal({
   isOpen,
   onClose,
@@ -77,7 +79,7 @@ export default function ContactModal({
     setErrorMessage("");
 
     try {
-      const response = await fetch("/api/contact", {
+      const response = await fetch(`${API_URL}/api/contact`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
