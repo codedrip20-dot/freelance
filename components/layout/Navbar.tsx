@@ -122,7 +122,7 @@ export default function Navbar() {
               </span>
 
               <span className="mt-1.5 block text-[8px] font-bold uppercase tracking-[0.2em] text-blue-200/40 sm:text-[9px]">
-                Digital Development
+              Technology
               </span>
             </div>
           </a>

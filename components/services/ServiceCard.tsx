@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 
 import ContactModal from "@/components/contact/ContactModal";
-
 import type { Service } from "@/data/services";
 
 type ServiceCardProps = {
@@ -20,8 +20,15 @@ export default function ServiceCard({ service }: ServiceCardProps) {
     setIsContactOpen(true);
   };
 
+  const closeContact = () => {
+    setIsContactOpen(false);
+  };
+
   return (
     <>
+      {/* =====================================================
+          SERVICE CARD
+      ====================================================== */}
       <motion.article
         initial={{ opacity: 0, y: 14 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -37,7 +44,9 @@ export default function ServiceCard({ service }: ServiceCardProps) {
             : "border-slate-200/80 shadow-[0_12px_32px_rgba(15,23,42,0.05)]"
         }`}
       >
-        {/* Ambient glow */}
+        {/* =====================================================
+            AMBIENT GLOW
+        ====================================================== */}
         <div
           aria-hidden="true"
           className={`pointer-events-none absolute -right-20 -top-20 h-44 w-44 rounded-full blur-3xl transition-all duration-500 ${
@@ -47,7 +56,9 @@ export default function ServiceCard({ service }: ServiceCardProps) {
           }`}
         />
 
-        {/* Header */}
+        {/* =====================================================
+            HEADER
+        ====================================================== */}
         <div className="relative z-10 flex items-center justify-between">
           <div
             className={`flex h-10 w-10 items-center justify-center rounded-[10px] border text-[11px] font-bold ${
@@ -71,7 +82,9 @@ export default function ServiceCard({ service }: ServiceCardProps) {
           )}
         </div>
 
-        {/* Title */}
+        {/* =====================================================
+            TITLE
+        ====================================================== */}
         <div className="relative z-10 mt-6">
           <h3 className="text-[26px] font-bold leading-tight tracking-[-0.035em] text-slate-950">
             {service.name}
@@ -82,7 +95,9 @@ export default function ServiceCard({ service }: ServiceCardProps) {
           </p>
         </div>
 
-        {/* Price */}
+        {/* =====================================================
+            PRICE
+        ====================================================== */}
         <div
           className={`relative z-10 mt-6 rounded-[15px] border px-5 py-4 ${
             isPopular
@@ -99,7 +114,9 @@ export default function ServiceCard({ service }: ServiceCardProps) {
           </p>
         </div>
 
-        {/* Ideal For */}
+        {/* =====================================================
+            IDEAL FOR
+        ====================================================== */}
         <div className="relative z-10 mt-6">
           <div className="mb-3 flex items-center gap-2.5">
             <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">
@@ -121,7 +138,9 @@ export default function ServiceCard({ service }: ServiceCardProps) {
           </div>
         </div>
 
-        {/* Included */}
+        {/* =====================================================
+            INCLUDED
+        ====================================================== */}
         <div className="relative z-10 mt-6">
           <div className="mb-3 flex items-center gap-2.5">
             <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">
@@ -153,7 +172,9 @@ export default function ServiceCard({ service }: ServiceCardProps) {
           </ul>
         </div>
 
-        {/* CTA */}
+        {/* =====================================================
+            CTA
+        ====================================================== */}
         <div className="relative z-10 mt-auto pt-7">
           <motion.button
             type="button"
@@ -182,7 +203,9 @@ export default function ServiceCard({ service }: ServiceCardProps) {
           </motion.button>
         </div>
 
-        {/* Bottom accent */}
+        {/* =====================================================
+            BOTTOM ACCENT
+        ====================================================== */}
         <div
           aria-hidden="true"
           className={`absolute bottom-0 left-0 h-[3px] w-0 transition-all duration-500 group-hover:w-full ${
@@ -191,11 +214,21 @@ export default function ServiceCard({ service }: ServiceCardProps) {
         />
       </motion.article>
 
-      {/* Contact Modal */}
-      <ContactModal
-        isOpen={isContactOpen}
-        onClose={() => setIsContactOpen(false)}
-      />
+      {/* =====================================================
+          CONTACT MODAL
+          Render outside the service card using a portal.
+          This prevents stacking/clipping issues caused by
+          transforms and overflow-hidden on the card.
+      ====================================================== */}
+      {isContactOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <ContactModal
+            isOpen={isContactOpen}
+            onClose={closeContact}
+          />,
+          document.body
+        )}
     </>
   );
 }

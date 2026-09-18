@@ -5,27 +5,11 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const RECEIVER_EMAIL = "utsavkarki0215@gmail.com";
 
-const ALLOWED_ORIGINS = [
-  "https://codedriptech.com",
-  "https://www.codedriptech.com",
-  "https://codedriptech.netlify.app",
-];
-
-function getCorsHeaders(origin: string | null) {
-  const allowedOrigin =
-    origin && ALLOWED_ORIGINS.includes(origin)
-      ? origin
-      : "https://codedriptech.com";
-
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-    Vary: "Origin",
-  };
-}
-
-function escapeHtml(value: string) {
+/**
+ * Escape user-provided values before inserting them into HTML.
+ * This prevents HTML injection inside the email body.
+ */
+function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -34,20 +18,7 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#039;");
 }
 
-// Handle browser CORS preflight request
-export async function OPTIONS(request: Request) {
-  const origin = request.headers.get("origin");
-
-  return new NextResponse(null, {
-    status: 204,
-    headers: getCorsHeaders(origin),
-  });
-}
-
 export async function POST(request: Request) {
-  const origin = request.headers.get("origin");
-  const corsHeaders = getCorsHeaders(origin);
-
   try {
     const body = await request.json();
 
@@ -60,26 +31,35 @@ export async function POST(request: Request) {
       website,
     } = body;
 
-    // Honeypot — catches simple bots
+    /**
+     * Honeypot
+     *
+     * This field is hidden from normal users.
+     * If a bot fills it, silently pretend the submission succeeded.
+     */
     if (website) {
-      return NextResponse.json(
-        { success: true },
-        { headers: corsHeaders }
-      );
+      return NextResponse.json({
+        success: true,
+      });
     }
 
-    // Basic validation
+    /**
+     * Basic required-field validation
+     */
     if (!name || !email || !projectType || !message) {
       return NextResponse.json(
-        { error: "Please fill in all required fields." },
+        {
+          error: "Please fill in all required fields.",
+        },
         {
           status: 400,
-          headers: corsHeaders,
         }
       );
     }
 
-    // Type validation
+    /**
+     * Type validation
+     */
     if (
       typeof name !== "string" ||
       typeof email !== "string" ||
@@ -87,176 +67,307 @@ export async function POST(request: Request) {
       typeof message !== "string"
     ) {
       return NextResponse.json(
-        { error: "Invalid form data." },
+        {
+          error: "Invalid form data.",
+        },
         {
           status: 400,
-          headers: corsHeaders,
         }
       );
     }
 
-    // Phone is optional, but if provided it must be a string
+    /**
+     * Phone is optional.
+     * If provided, it must be a string.
+     */
     if (phone !== undefined && typeof phone !== "string") {
       return NextResponse.json(
-        { error: "Invalid phone number." },
+        {
+          error: "Invalid phone number.",
+        },
         {
           status: 400,
-          headers: corsHeaders,
         }
       );
     }
 
-    // Length validation
-    if (name.length > 100) {
+    /**
+     * Trim values once so validation and email content
+     * use the same cleaned data.
+     */
+    const cleanName = name.trim();
+    const cleanEmail = email.trim();
+    const cleanPhone = phone?.trim() || "";
+    const cleanProjectType = projectType.trim();
+    const cleanMessage = message.trim();
+
+    /**
+     * Make sure required values aren't just whitespace.
+     */
+    if (
+      !cleanName ||
+      !cleanEmail ||
+      !cleanProjectType ||
+      !cleanMessage
+    ) {
       return NextResponse.json(
-        { error: "Name is too long." },
+        {
+          error: "Please fill in all required fields.",
+        },
         {
           status: 400,
-          headers: corsHeaders,
         }
       );
     }
 
-    if (email.length > 200) {
+    /**
+     * Length validation
+     */
+    if (cleanName.length > 100) {
       return NextResponse.json(
-        { error: "Email is too long." },
+        {
+          error: "Name is too long.",
+        },
         {
           status: 400,
-          headers: corsHeaders,
         }
       );
     }
 
-    if (phone && phone.length > 20) {
+    if (cleanEmail.length > 200) {
       return NextResponse.json(
-        { error: "Phone number is too long." },
+        {
+          error: "Email is too long.",
+        },
         {
           status: 400,
-          headers: corsHeaders,
         }
       );
     }
 
-    if (message.length > 5000) {
+    if (cleanPhone.length > 20) {
       return NextResponse.json(
-        { error: "Message is too long." },
+        {
+          error: "Phone number is too long.",
+        },
         {
           status: 400,
-          headers: corsHeaders,
         }
       );
     }
 
-    // Email validation
+    if (cleanProjectType.length > 100) {
+      return NextResponse.json(
+        {
+          error: "Project type is too long.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    if (cleanMessage.length > 5000) {
+      return NextResponse.json(
+        {
+          error: "Message is too long.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    /**
+     * Email validation
+     */
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!emailRegex.test(email.trim())) {
+    if (!emailRegex.test(cleanEmail)) {
       return NextResponse.json(
-        { error: "Please enter a valid email address." },
+        {
+          error: "Please enter a valid email address.",
+        },
         {
           status: 400,
-          headers: corsHeaders,
         }
       );
     }
 
-    // Sanitize values before inserting them into HTML
-    const safeName = escapeHtml(name.trim());
-    const safeEmail = escapeHtml(email.trim());
-    const safePhone = escapeHtml(phone?.trim() || "Not provided");
-    const safeProjectType = escapeHtml(projectType.trim());
-    const safeMessage = escapeHtml(message.trim());
+    /**
+     * Sanitize values before inserting them into HTML.
+     */
+    const safeName = escapeHtml(cleanName);
+    const safeEmail = escapeHtml(cleanEmail);
+    const safePhone = escapeHtml(
+      cleanPhone || "Not provided"
+    );
+    const safeProjectType = escapeHtml(cleanProjectType);
+    const safeMessage = escapeHtml(cleanMessage);
 
-    // Send email through Resend
+    /**
+     * Make sure Resend is configured.
+     */
+    if (!process.env.RESEND_API_KEY) {
+      console.error("RESEND_API_KEY is missing.");
+
+      return NextResponse.json(
+        {
+          error: "Email service is not configured.",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    /**
+     * Send email through Resend.
+     */
     const { error } = await resend.emails.send({
       from:
-        process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+        process.env.RESEND_FROM_EMAIL ||
+        "onboarding@resend.dev",
 
       to: [RECEIVER_EMAIL],
 
-      replyTo: email.trim(),
+      replyTo: cleanEmail,
 
-      subject: `New CodeDrip inquiry — ${projectType}`,
+      subject: `New CodeDrip inquiry — ${cleanProjectType}`,
 
       html: `
         <div
           style="
             font-family: Arial, sans-serif;
             max-width: 650px;
-            margin: auto;
+            margin: 0 auto;
+            padding: 24px;
             color: #0f172a;
+            background: #ffffff;
           "
         >
-          <h2>New CodeDrip Project Inquiry</h2>
+          <h2
+            style="
+              margin: 0 0 24px;
+              color: #0f172a;
+            "
+          >
+            New CodeDrip Project Inquiry
+          </h2>
 
-          <p>
-            <strong>Name:</strong>
-            ${safeName}
-          </p>
+          <div
+            style="
+              padding: 20px;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
+              background: #f8fafc;
+            "
+          >
+            <p>
+              <strong>Name:</strong>
+              ${safeName}
+            </p>
 
-          <p>
-            <strong>Email:</strong>
-            ${safeEmail}
-          </p>
+            <p>
+              <strong>Email:</strong>
+              ${safeEmail}
+            </p>
 
-          <p>
-            <strong>Phone:</strong>
-            ${safePhone}
-          </p>
+            <p>
+              <strong>Phone:</strong>
+              ${safePhone}
+            </p>
 
-          <p>
-            <strong>Project Type:</strong>
-            ${safeProjectType}
-          </p>
+            <p>
+              <strong>Project Type:</strong>
+              ${safeProjectType}
+            </p>
+          </div>
 
-          <hr />
+          <div
+            style="
+              margin-top: 24px;
+              padding: 20px;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
+            "
+          >
+            <h3
+              style="
+                margin-top: 0;
+                color: #0f172a;
+              "
+            >
+              Project Message
+            </h3>
 
-          <h3>Project Message</h3>
+            <p
+              style="
+                white-space: pre-wrap;
+                line-height: 1.7;
+                color: #334155;
+              "
+            >
+              ${safeMessage}
+            </p>
+          </div>
 
-          <p style="white-space: pre-wrap;">
-            ${safeMessage}
-          </p>
+          <hr
+            style="
+              margin: 28px 0;
+              border: 0;
+              border-top: 1px solid #e2e8f0;
+            "
+          />
 
-          <hr />
-
-          <p>
-            You can reply directly to this email to contact ${safeName}.
+          <p
+            style="
+              margin: 0;
+              color: #64748b;
+              font-size: 14px;
+            "
+          >
+            You can reply directly to this email to contact
+            ${safeName}.
           </p>
         </div>
       `,
     });
 
-    // Resend failed
+    /**
+     * Resend failed.
+     */
     if (error) {
       console.error("Resend error:", error);
 
       return NextResponse.json(
-        { error: "Failed to send message. Please try again." },
+        {
+          error:
+            "Failed to send message. Please try again.",
+        },
         {
           status: 500,
-          headers: corsHeaders,
         }
       );
     }
 
-    // Success
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Message sent successfully!",
-      },
-      {
-        headers: corsHeaders,
-      }
-    );
+    /**
+     * Success.
+     */
+    return NextResponse.json({
+      success: true,
+      message: "Message sent successfully!",
+    });
   } catch (error) {
     console.error("Contact API error:", error);
 
     return NextResponse.json(
-      { error: "Something went wrong. Please try again." },
+      {
+        error:
+          "Something went wrong. Please try again.",
+      },
       {
         status: 500,
-        headers: corsHeaders,
       }
     );
   }
